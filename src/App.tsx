@@ -35,6 +35,7 @@ const tabelas = [
       "conference_code",
       "issn",
       "isbn",
+      "issn_isbn",
       "coden",
       "pubmed_id",
       "language_original_document",
@@ -160,15 +161,91 @@ function App() {
     }
   }
 
-  function formatarValor(valor: unknown) {
-    if (valor === null || valor === undefined || valor === "") return "-";
+  async function criarColunaIssnIsbn() {
+  setMensagemTransformacao("Preenchendo ISSN/ISBN...");
 
-    if (typeof valor === "object") {
-      return JSON.stringify(valor);
-    }
+  const { error } = await supabase
+    .from("article")
+    .update({
+      issn_isbn: null,
+    })
+    .neq("id", 0);
 
-    return String(valor);
+  if (error) {
+    setErro(error.message);
+    return;
   }
+
+  setMensagemTransformacao("Operação concluída.");
+}
+
+async function tratarTipoAcesso() {
+  setMensagemTransformacao("Tratando tipo de acesso...");
+
+  const { error } = await supabase.rpc("tratar_tipo_acesso");
+
+  if (error) {
+    setErro(error.message);
+    setMensagemTransformacao("");
+    return;
+  }
+
+  setMensagemTransformacao(
+    "Tipo de acesso tratado com sucesso."
+  );
+
+  if (tabelaAtual === "article") {
+    const tabelaArticle = tabelas.find(
+      (t) => t.nome === "article"
+    );
+
+    if (tabelaArticle) {
+      buscarDados(tabelaArticle);
+    }
+  }
+}
+
+async function tratarDoi() {
+  setMensagemTransformacao("Tratando DOI...");
+
+  const { error } = await supabase.rpc("tratar_doi");
+
+  if (error) {
+    setErro(error.message);
+    setMensagemTransformacao("");
+    return;
+  }
+
+  setMensagemTransformacao(
+    "DOI tratado com sucesso."
+  );
+
+  if (tabelaAtual === "article") {
+    const tabelaArticle = tabelas.find(
+      (t) => t.nome === "article"
+    );
+
+    if (tabelaArticle) {
+      buscarDados(tabelaArticle);
+    }
+  }
+}
+
+  function formatarValor(valor: unknown) {
+  if (valor === null || valor === undefined) {
+    return "Sem dados";
+  }
+
+  if (typeof valor === "string" && valor.trim() === "") {
+    return "Sem dados";
+  }
+
+  if (typeof valor === "object") {
+    return JSON.stringify(valor);
+  }
+
+  return String(valor);
+}
 
   const dadosFiltrados = useMemo(() => {
     if (!busca.trim()) return dados;
@@ -198,9 +275,35 @@ function App() {
             artigos.
           </p>
 
-          <button className="botao-transformacao" onClick={limparAbstractNulo}>
-            Limpar abstract nulo
-          </button>
+          <div className="botoes-transformacao">
+  <button
+    className="botao-transformacao"
+    onClick={limparAbstractNulo}
+  >
+    Limpar abstract nulo
+  </button>
+
+  <button
+    className="botao-transformacao"
+    onClick={criarColunaIssnIsbn}
+  >
+    Criar coluna ISSN/ISBN
+  </button>
+
+  <button
+  className="botao-transformacao"
+  onClick={tratarTipoAcesso}
+>
+  Tratar Tipo de Acesso
+</button>
+
+<button
+  className="botao-transformacao"
+  onClick={tratarDoi}
+>
+  Tratar DOI
+</button>
+</div>
 
           {mensagemTransformacao && (
             <div className="mensagem-transformacao">
