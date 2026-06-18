@@ -89,9 +89,11 @@ function Dashboard() {
     const mediaCitacoes = artigos ? totalCitacoes / artigos : 0;
 
     const openAccessCount =
-      citacoesData?.filter((a) => a.open_access === true).length || 0;
+      citacoesData?.filter((a) => a.open_access !== null).length || 0;
 
-    const openAccessPct = artigos ? (openAccessCount / artigos) * 100 : 0;
+   const openAccessPct = artigos
+    ? (openAccessCount / artigos) * 100
+    : 0;
 
     setMetricas({
       artigos: artigos || 0,
