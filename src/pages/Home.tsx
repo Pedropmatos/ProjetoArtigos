@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import "./../css/Home.css";
 
@@ -265,6 +266,11 @@ async function tratarDoi() {
         <p>
           Clique em uma tabela para visualizar os dados importados do Supabase.
         </p>
+        <div style={{ marginTop: 12 }}>
+          <Link to="/dashboard">
+            <button className="botao-dashboard">Ir para Dashboard</button>
+          </Link>
+        </div>
       </section>
 
       <section className="layout">

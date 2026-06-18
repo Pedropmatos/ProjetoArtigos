@@ -1,6 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import "./../css/Dashboard.css";
+import ForceGraph2D from "react-force-graph-2d";
+import type { ForceGraphMethods } from "react-force-graph-2d";
+
+const fgRef = useRef<ForceGraphMethods | null>(null);
 
 type PublicacaoPorAno = {
   year: string;
@@ -27,6 +31,11 @@ type KeywordRanking = {
   count: number;
 };
 
+type GrupoConceitual = {
+  grupo: string;
+  count: number;
+};
+
 type ArticleOpenAccess = {
   open_access: string | null;
 };
@@ -39,6 +48,26 @@ type OpenAccessChart = {
 type LanguageChart = {
   name: string;
   value: number;
+};
+type KeywordMap = {
+  conceito: string;
+  keywords: string[];
+}; 
+
+type WordCloudItem = {
+  text: string;
+  value: number;
+};
+
+type CoauthorNode = {
+  name: string;
+  count: number;
+};
+
+type CoauthorLink = {
+  source: string;
+  target: string;
+  count: number;
 };
 
 function Dashboard() {
@@ -53,9 +82,27 @@ function Dashboard() {
 
   const [topKeywords, setTopKeywords] = useState<KeywordRanking[]>([]);
 
+  const [topGruposConceituais, setTopGruposConceituais] =
+  useState<GrupoConceitual[]>([]);
+
   const [openAccessData, setOpenAccessData] = useState<OpenAccessChart[]>([]);
 
   const [languageData, setLanguageData] = useState<LanguageChart[]>([]);
+
+  const [keywordMap, setKeywordMap] =
+  useState<KeywordMap[]>([]);
+
+const [wordCloudData, setWordCloudData] =
+  useState<WordCloudItem[]>
+  ([]);
+
+  const [coauthorNodes, setCoauthorNodes] =
+  useState<CoauthorNode[]>([]);
+
+const [coauthorLinks, setCoauthorLinks] =
+  useState<CoauthorLink[]>([]);
+
+  const fgRef = useRef<ForceGraphMethods | null>(null);
 
   const [metricas, setMetricas] = useState({
     artigos: 0,
@@ -280,6 +327,242 @@ function Dashboard() {
       setTopKeywords(resultado);
     }
 
+    async function carregarGruposConceituais() {
+  const { data, error } = await supabase
+    .from("article_keyword")
+    .select(`
+      keyword:keyword_id (
+        keyword
+      )
+    `);
+
+  if (error || !data) {
+    console.error(error);
+    return;
+  }
+
+  const grupos: Record<string, string[]> = {
+    "Taxonomia e Espécies": [
+      "mandaçaia",
+      "uruçú",
+      "plebeia",
+      "tetragonula",
+      "friseomelita",
+      "melipona",
+      "partamona",
+      "lophotrigona",
+      "anthophila",
+      "apidae",
+      "meliponina"
+    ],
+
+    "Ecologia e Conservação": [
+      "pollination",
+      "wild pollinators",
+      "bee conservation",
+      "distribution",
+      "niche overlap",
+      "colony loss",
+      "seasonality",
+      "nestedness"
+    ],
+
+    "Comportamento e Forrageamento": [
+      "foraging",
+      "flight activity",
+      "flight activities",
+      "generalist forager",
+      "selective pollen",
+      "colony gathering",
+      "garbage removal"
+    ],
+
+    "Produtos Apícolas": [
+      "honey production",
+      "propolis",
+      "cerumen",
+      "polyphenols",
+      "flavonoids",
+      "antioxidant activity",
+      "physicochemical",
+      "pollinic sample",
+      "pollinic type"
+    ],
+
+    "Microbiologia e Saúde": [
+      "gut microbiota",
+      "lactobacillaceae",
+      "bacteria diversity",
+      "bee virus",
+      "microbiological",
+      "significant metabolites",
+      "biological activities",
+      "stingless bee therapy",
+      "expectorant activity"
+    ],
+
+    "Ninhos e Colônias": [
+      "nest volume",
+      "nest development",
+      "stingless bee nest",
+      "intranidal temperature",
+      "humidity",
+      "relative volume"
+    ],
+
+    "Botânica e Recursos Florais": [
+      "bee forage",
+      "bee forage plants",
+      "flowering calendar",
+      "fabaceae",
+      "plants",
+      "pollen",
+      "stored pollen",
+      "pot pollen"
+    ],
+
+    "Genética e Evolução": [
+      "dna barcode",
+      "gene rearrangement",
+      "phylogenetic comparative methods",
+      "eusociality",
+      "symmetry"
+    ],
+
+    "Meliponicultura e Produção": [
+      "box hive",
+      "sugar syrup",
+      "income source",
+      "livestock",
+      "bee product yield"
+    ],
+
+    "Aspectos Sociais e Políticos": [
+      "ethnozoology",
+      "patrimonio biocultural",
+      "digital biopiracy",
+      "environmental politics",
+      "swot analysis",
+      "innovation",
+      "pedagogy"
+    ]
+  };
+
+  const contagem: Record<string, number> = {};
+
+  Object.keys(grupos).forEach((grupo) => {
+    contagem[grupo] = 0;
+  });
+
+  data.forEach((item: any) => {
+    const keyword =
+      item.keyword?.keyword?.toLowerCase() || "";
+
+    Object.entries(grupos).forEach(([grupo, palavras]) => {
+      if (
+        palavras.some((p) =>
+          keyword.includes(p.toLowerCase())
+        )
+      ) {
+        contagem[grupo]++;
+      }
+    });
+  });
+
+  const resultado = Object.entries(contagem)
+    .map(([grupo, count]) => ({
+      grupo,
+      count,
+    }))
+    .filter((g) => g.count > 0)
+    .sort((a, b) => b.count - a.count);
+
+  setTopGruposConceituais(resultado);
+}
+
+async function carregarMapaKeywords() {
+  const { data, error } = await supabase
+    .from("keyword")
+    .select("keyword");
+
+  if (error || !data) {
+    console.error(error);
+    return;
+  }
+
+  const conceitos: Record<string, string[]> = {
+    "Polinização": [
+      "pollination",
+      "pollen",
+      "pollinic",
+      "stored pollen",
+      "selective pollen",
+      "pot pollen"
+    ],
+
+    "Produtos Apícolas": [
+      "honey",
+      "propolis",
+      "cerumen",
+      "flavonoids",
+      "polyphenols"
+    ],
+
+    "Abelhas Sem Ferrão": [
+      "stingless bee",
+      "native bee",
+      "native stingless bees",
+      "meliponina"
+    ],
+
+    "Forrageamento": [
+      "foraging",
+      "bee forage",
+      "bee pasture",
+      "generalist forager"
+    ],
+
+    "Microbiota e Saúde": [
+      "gut microbiota",
+      "bacteria",
+      "lactobacillaceae",
+      "virus",
+      "microbiological"
+    ],
+
+    "Ninhos e Colônias": [
+      "nest",
+      "colony",
+      "intranidal",
+      "humidity"
+    ]
+  };
+
+  const resultado: KeywordMap[] = [];
+
+  Object.entries(conceitos).forEach(([conceito, termos]) => {
+
+    const relacionadas = data
+      .map((item) => item.keyword)
+      .filter((keyword) =>
+        termos.some((termo) =>
+          keyword.toLowerCase().includes(
+            termo.toLowerCase()
+          )
+        )
+      );
+
+    if (relacionadas.length > 0) {
+      resultado.push({
+        conceito,
+        keywords: relacionadas,
+      });
+    }
+  });
+
+  setKeywordMap(resultado);
+}
+
     async function carregarOpenAccess(): Promise<void> {
       const { data, error } = await supabase
         .from("article")
@@ -300,6 +583,8 @@ function Dashboard() {
         { name: "Sem Open Access", value: semOA },
       ]);
     }
+
+    
 
     async function carregarIdiomas(): Promise<void> {
       const { data, error } = await supabase
@@ -340,6 +625,132 @@ function Dashboard() {
       ]);
     }
 
+    async function carregarWordCloud() {
+  const { data, error } = await supabase
+    .from("article_keyword")
+    .select(`
+      keyword:keyword_id (
+        keyword
+      )
+    `);
+
+  if (error || !data) return;
+
+  const contagem: Record<string, number> = {};
+
+  data.forEach((item: any) => {
+    const palavra = item.keyword?.keyword;
+
+    if (!palavra) return;
+
+    contagem[palavra] =
+      (contagem[palavra] || 0) + 1;
+  });
+
+  const resultado = Object.entries(contagem)
+    .map(([text, value]) => ({
+      text,
+      value,
+    }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 100);
+
+  setWordCloudData(resultado);
+}
+
+async function carregarMapaCoautoria() {
+
+  const { data, error } = await supabase
+    .from("author")
+    .select("name");
+
+  if (error || !data) {
+    console.error(error);
+    return;
+  }
+
+  const nodeCount: Record<string, number> = {};
+  const linkCount: Record<string, number> = {};
+
+  data.forEach((registro) => {
+
+    if (!registro.name) return;
+
+    const autores = registro.name
+  .split(";")
+  .map((a: string) => a.trim())
+  .filter(Boolean);
+
+    autores.forEach((autor: string) => {
+  nodeCount[autor] =
+    (nodeCount[autor] || 0) + 1;
+});
+
+    for (let i = 0; i < autores.length; i++) {
+
+      for (
+        let j = i + 1;
+        j < autores.length;
+        j++
+      ) {
+
+        const pair = [
+          autores[i],
+          autores[j],
+        ]
+          .sort()
+          .join("|");
+
+        linkCount[pair] =
+          (linkCount[pair] || 0) + 1;
+      }
+    }
+  });
+
+  const nodes = Object.entries(nodeCount)
+    .map(([name, count]) => ({
+      name,
+      count,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 25);
+
+  const nomesVisiveis = new Set(
+    nodes.map((n) => n.name)
+  );
+
+  const links = Object.entries(linkCount)
+    .map(([pair, count]) => {
+
+      const [source, target] =
+        pair.split("|");
+
+      return {
+        source,
+        target,
+        count,
+      };
+    })
+    .filter(
+      (link) =>
+        nomesVisiveis.has(link.source) &&
+        nomesVisiveis.has(link.target)
+    );
+
+  setCoauthorNodes(nodes);
+  setCoauthorLinks(links);
+}
+
+const maxWordCloud = useMemo(() => {
+  if (wordCloudData.length === 0) return 1;
+
+  return Math.max(
+    ...wordCloudData.map((w) => w.value)
+  );
+}, [wordCloudData]);
+
+
+
   // =========================
   // LOAD
   // =========================
@@ -352,6 +763,10 @@ function Dashboard() {
     carregarTopKeywords();
     carregarOpenAccess();
     carregarIdiomas();
+    carregarGruposConceituais();
+    carregarMapaKeywords();
+    carregarWordCloud();
+    carregarMapaCoautoria();
   }, []);
 
   // =========================
@@ -387,6 +802,15 @@ function Dashboard() {
 
     return Math.max(...topKeywords.map((k) => k.count));
   }, [topKeywords]);
+
+  const maxGrupoConceitual = useMemo(() => {
+    if (topGruposConceituais.length === 0) return 1;
+
+    return Math.max(
+      ...topGruposConceituais.map((g) => g.count)
+    );
+  }, [topGruposConceituais]);
+
 
   return (
     <main className="page">
@@ -696,6 +1120,51 @@ function Dashboard() {
       </section>
 
       <section>
+  {topGruposConceituais.length > 0 && (
+    <div className="grafico-container">
+      <h2>Grupos Conceituais</h2>
+
+      {topGruposConceituais.map((item) => {
+        const width =
+          (item.count / maxGrupoConceitual) * 100;
+
+        return (
+          <div
+            key={item.grupo}
+            style={{ marginBottom: "12px" }}
+          >
+            <div
+              style={{
+                marginBottom: "4px",
+                fontSize: "14px",
+              }}
+            >
+              {item.grupo} ({item.count})
+            </div>
+
+            <div
+              style={{
+                background: "#1e293b",
+                borderRadius: "8px",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: `${width}%`,
+                  height: "28px",
+                  background: "#8b5cf6",
+                }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  )}
+</section>
+
+      <section>
         {openAccessData.length > 0 && (
           <div className="grafico-container">
             {/* TÍTULO */}
@@ -824,6 +1293,101 @@ function Dashboard() {
           </div>
         )}
       </section>
+
+<section>
+  {wordCloudData.length > 0 && (
+    <div className="grafico-container">
+      <h2>Nuvem de Palavras-Chave</h2>
+
+      <div
+        style={{
+          minHeight: "500px",
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: "12px",
+          padding: "30px",
+          lineHeight: 1.2,
+        }}
+      >
+        {wordCloudData.map((word, index) => {
+          const fontSize =
+            14 + (word.value / maxWordCloud) * 60;
+
+          const rotate =
+            index % 5 === 0
+              ? "rotate(-10deg)"
+              : index % 7 === 0
+              ? "rotate(10deg)"
+              : "rotate(0deg)";
+
+          return (
+            <span
+              key={word.text}
+              style={{
+                fontSize: `${fontSize}px`,
+                fontWeight:
+                  word.value > maxWordCloud * 0.4
+                    ? 700
+                    : 500,
+                transform: rotate,
+                display: "inline-block",
+                opacity: 0.9,
+              }}
+            >
+              {word.text}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  )}
+</section>
+
+<section>
+  {coauthorNodes.length > 0 && (
+    <div className="grafico-container">
+      <h2>Mapa de Coautoria</h2>
+
+      <div
+        style={{
+          height: "700px",
+          background: "#ffffff",
+          borderRadius: "10px",
+        }}
+      >
+        <ForceGraph2D
+  graphData={{
+    nodes: coauthorNodes.map((n) => ({
+      id: n.name,
+      val: n.count,
+    })),
+    links: coauthorLinks.map((l) => ({
+      source: l.source,
+      target: l.target,
+      value: l.count,
+    })),
+  }}
+  nodeLabel="id"
+  nodeRelSize={6}
+  nodeVal={(node: any) => node.val}
+  nodeColor={() => "#3b82f6"}
+
+  linkWidth={(link: any) => Math.sqrt(link.value)}
+  linkColor={() => "rgba(120,120,120,0.25)"}
+
+  cooldownTicks={300}
+  d3AlphaDecay={0.03}
+  d3VelocityDecay={0.45}
+
+/>
+      </div>
+    </div>
+  )}
+</section>
+
+      
     </main>
   );
 }

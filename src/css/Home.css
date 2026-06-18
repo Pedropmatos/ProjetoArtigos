@@ -357,3 +357,21 @@ tr:hover {
     position: static;
   }
 }
+
+/* Botão que leva ao Dashboard */
+.botao-dashboard {
+  margin-top: 12px;
+  padding: 10px 16px;
+  background: transparent;
+  color: #3ecf8e;
+  border: 1px solid rgba(62, 207, 142, 0.28);
+  border-radius: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.botao-dashboard:hover {
+  background: rgba(62, 207, 142, 0.06);
+  transform: translateY(-2px);
+}
