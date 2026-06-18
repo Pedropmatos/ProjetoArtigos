@@ -36,6 +36,11 @@ type OpenAccessChart = {
   value: number;
 };
 
+type LanguageChart = {
+  name: string;
+  value: number;
+};
+
 function Dashboard() {
   
   const [publicacoesPorAno, setPublicacoesPorAno] = useState<PublicacaoPorAno[]>([]);
@@ -49,6 +54,8 @@ function Dashboard() {
   const [topKeywords, setTopKeywords] = useState<KeywordRanking[]>([]);
 
   const [openAccessData, setOpenAccessData] = useState<OpenAccessChart[]>([]);
+
+  const [languageData, setLanguageData] = useState<LanguageChart[]>([]);
 
   const [metricas, setMetricas] = useState({
     artigos: 0,
@@ -292,6 +299,45 @@ function Dashboard() {
       ]);
     }
 
+    async function carregarIdiomas(): Promise<void> {
+      const { data, error } = await supabase
+        .from("article")
+        .select("language_original_document");
+
+      if (error || !data) {
+        console.error(error);
+        return;
+      }
+
+      let english = 0;
+      let spanish = 0;
+      let portuguese = 0;
+      let other = 0;
+
+      data.forEach((item: { language_original_document: string | null }) => {
+        const lang = item.language_original_document;
+
+        if (!lang) {
+          other++;
+          return;
+        }
+
+        const normalized = lang.toLowerCase();
+
+        if (normalized.includes("english")) english++;
+        else if (normalized.includes("spanish")) spanish++;
+        else if (normalized.includes("portuguese")) portuguese++;
+        else other++;
+      });
+
+      setLanguageData([
+        { name: "English", value: english },
+        { name: "Spanish", value: spanish },
+        { name: "Portuguese", value: portuguese },
+        { name: "Other", value: other },
+      ]);
+    }
+
   // =========================
   // LOAD
   // =========================
@@ -303,6 +349,7 @@ function Dashboard() {
     carregarTopAutores();
     carregarTopKeywords();
     carregarOpenAccess();
+    carregarIdiomas();
   }, []);
 
   // =========================
@@ -691,6 +738,78 @@ function Dashboard() {
                       height: "12px",
                       background:
                         item.name === "Open Access" ? "#3ecf8e" : "#ef4444",
+                      display: "inline-block",
+                      marginRight: "8px",
+                      borderRadius: "2px",
+                    }}
+                  />
+                  {item.name}: <strong style={{ marginLeft: "4px" }}>{item.value}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section>
+        {languageData.length > 0 && (
+          <div className="grafico-container">
+            <h2 style={{ textAlign: "center", marginBottom: "20px" , marginTop:"20px"}}>
+              Idiomas dos Artigos
+            </h2>
+
+            {/* PIZZA */}
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <div
+                style={{
+                  width: "220px",
+                  height: "220px",
+                  borderRadius: "50%",
+                  background: `conic-gradient(
+                    #3b82f6 0% ${
+                      (languageData[0]?.value /
+                        languageData.reduce((a, b) => a + b.value, 0)) *
+                      100
+                    }%,
+                    #f59e0b ${
+                      (languageData[0]?.value /
+                        languageData.reduce((a, b) => a + b.value, 0)) *
+                      100
+                    }% ${
+                      ((languageData[0]?.value + languageData[1]?.value) /
+                        languageData.reduce((a, b) => a + b.value, 0)) *
+                      100
+                    }%,
+                    #10b981 0%
+                  )`,
+                }}
+              />
+            </div>
+
+            {/* LEGENDA */}
+            <div
+              style={{
+                marginTop: "20px",
+                display: "flex",
+                justifyContent: "center",
+                gap: "20px",
+                flexWrap: "wrap",
+              }}
+            >
+              {languageData.map((item) => (
+                <div key={item.name} style={{ display: "flex", alignItems: "center" }}>
+                  <span
+                    style={{
+                      width: "12px",
+                      height: "12px",
+                      background:
+                        item.name === "English"
+                          ? "#3b82f6"
+                          : item.name === "Spanish"
+                          ? "#f59e0b"
+                          : item.name === "Portuguese"
+                          ? "#10b981"
+                          : "#6b7280",
                       display: "inline-block",
                       marginRight: "8px",
                       borderRadius: "2px",
